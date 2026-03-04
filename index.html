@@ -382,6 +382,9 @@
 
             <!-- Action Buttons -->
             <div class="action-bar">
+                <button class="btn btn-primary" onclick="generateAllImages()" id="generateImgBtn">
+                    🖼️ 이미지 생성
+                </button>
                 <button class="btn btn-primary" onclick="copyHTML()" id="copyBtn">
                     📋 HTML 복사 (네이버용)
                 </button>
@@ -421,6 +424,10 @@
     // ========================================
     const SUPABASE_URL = 'https://fdirddgdtoeierjmtxmj.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_ftB392gioHl9BxbpNr0zyw_MVfR1sdC';
+
+    // Gemini Image API
+    const GEMINI_API_KEY = 'AIzaSyClrR9J3X6MZV8muX10Xfng9B_hkQXC57A';
+    const GEMINI_MODEL = 'gemini-2.0-flash-preview-image-generation';
 
     let allPosts = [];
     let currentPost = null;
@@ -530,13 +537,67 @@
         // YAML frontmatter 제거 (---...--- 사이)
         let html = content.replace(/^---[\s\S]*?---\s*/m, '').trim();
 
-        // [나노바나나: ...] 태그를 이미지 플레이스홀더로 변환
+        // [나노바나나: ...] 태그를 이미지 플레이스홀더로 변환 (생성 대기 상태)
         html = html.replace(
             /\[나노바나나:\s*(.*?)\]/g,
-            '<div style="background:#f0f0f0; border:2px dashed #ccc; padding:20px; text-align:center; margin:15px 0; border-radius:8px; color:#888;">🖼️ 이미지 위치<br><small>$1</small></div>'
+            '<div class="nano-banana-placeholder" data-prompt="$1" style="background:#f0f0f0; border:2px dashed #ccc; padding:20px; text-align:center; margin:15px 0; border-radius:8px; color:#888;">🖼️ 이미지 생성 대기<br><small>$1</small></div>'
         );
 
         return html;
+    }
+
+    // ========================================
+    // Gemini 이미지 생성
+    // ========================================
+    async function generateImage(prompt) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: `Generate this image: ${prompt}` }] }],
+                generationConfig: { responseModalities: ['IMAGE'] }
+            })
+        });
+        if (!res.ok) throw new Error(`API 오류: ${res.status}`);
+        const data = await res.json();
+        const part = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        if (!part) throw new Error('이미지 응답 없음');
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    }
+
+    async function generateAllImages() {
+        const placeholders = document.querySelectorAll('.nano-banana-placeholder');
+        if (placeholders.length === 0) {
+            showToast('⚠️ 생성할 이미지가 없습니다');
+            return;
+        }
+
+        const btn = document.getElementById('generateImgBtn');
+        btn.disabled = true;
+        const total = placeholders.length;
+        let count = 0;
+
+        for (const el of placeholders) {
+            const prompt = el.dataset.prompt;
+            btn.innerHTML = `⏳ 생성 중... (${count + 1}/${total})`;
+            el.innerHTML = '<div class="spinner" style="margin:20px auto;"></div><br><small>이미지 생성 중...</small>';
+            try {
+                const imgSrc = await generateImage(prompt);
+                el.outerHTML = `<img src="${imgSrc}" style="max-width:100%; height:auto; margin:15px 0; border-radius:8px;" alt="${prompt}">`;
+                count++;
+            } catch (err) {
+                el.innerHTML = `<div style="color:#e53935; padding:10px;">❌ 실패: ${err.message}<br><small>${prompt}</small></div>`;
+                count++;
+            }
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '🖼️ 이미지 생성';
+        showToast(`✅ ${count}개 이미지 생성 완료!`);
+
+        // 코드 뷰 업데이트
+        document.getElementById('codeContent').textContent = document.getElementById('previewPane').innerHTML;
     }
 
     // ========================================
@@ -544,7 +605,8 @@
     // ========================================
     async function copyHTML() {
         if (!currentPost) return;
-        const html = extractBodyHTML(currentPost.content);
+        // 미리보기 영역의 현재 HTML 사용 (생성된 이미지 포함)
+        const html = document.getElementById('previewPane').innerHTML;
 
         try {
             // 리치 HTML + 텍스트 모두 클립보드에 복사
