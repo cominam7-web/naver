@@ -342,6 +342,7 @@
         <div class="subtitle">Supabase → HTML 복사 → 네이버 블로그 붙여넣기</div>
     </div>
     <div class="header-right">
+        <button class="refresh-btn" onclick="promptGeminiKey()">🔑 API키</button>
         <button class="refresh-btn" onclick="loadPosts()">🔄 새로고침</button>
     </div>
 </div>
@@ -426,8 +427,21 @@
     const SUPABASE_KEY = 'sb_publishable_ftB392gioHl9BxbpNr0zyw_MVfR1sdC';
 
     // Gemini Image API
-    const GEMINI_API_KEY = 'AIzaSyDaookjoCDPKImNiBGCSVj4KdZALm-1-u8';
     const GEMINI_MODEL = 'gemini-2.5-flash-image';
+    function getGeminiKey() {
+        return localStorage.getItem('gemini_api_key') || '';
+    }
+    function setGeminiKey(key) {
+        localStorage.setItem('gemini_api_key', key);
+    }
+    function promptGeminiKey() {
+        const current = getGeminiKey();
+        const key = prompt('Gemini API 키를 입력하세요:', current);
+        if (key !== null && key.trim()) {
+            setGeminiKey(key.trim());
+            showToast('API 키가 저장되었습니다.');
+        }
+    }
 
     let allPosts = [];
     let currentPost = null;
@@ -550,7 +564,9 @@
     // Gemini 이미지 생성
     // ========================================
     async function generateImage(prompt) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+        const apiKey = getGeminiKey();
+        if (!apiKey) throw new Error('Gemini API 키가 설정되지 않았습니다. 상단 🔑 버튼을 눌러 설정하세요.');
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
         const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
