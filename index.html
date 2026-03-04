@@ -617,7 +617,9 @@
         const total = placeholders.length;
         let count = 0;
 
-        for (const el of placeholders) {
+        for (let i = 0; i < placeholders.length; i++) {
+            const el = placeholders[i];
+            if (i > 0) await new Promise(r => setTimeout(r, 5000)); // 5초 대기
             const prompt = el.dataset.prompt;
             btn.innerHTML = `⏳ 생성 중... (${count + 1}/${total})`;
             el.innerHTML = '<div class="spinner" style="margin:20px auto;"></div><br><small>이미지 생성 중...</small>';
