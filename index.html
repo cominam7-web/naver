@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ILSANGGAM 네이버 블로그 복사 도구</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        /* Header */
+        .header {
+            background: #03c75a;
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .header .subtitle {
+            font-size: 13px;
+            opacity: 0.85;
+            margin-top: 2px;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .refresh-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .refresh-btn:hover { background: rgba(255,255,255,0.35); }
+
+        /* Layout */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            min-height: calc(100vh - 68px);
+        }
+
+        /* Sidebar - Post List */
+        .sidebar {
+            width: 360px;
+            background: white;
+            border-right: 1px solid #e5e5e5;
+            overflow-y: auto;
+            height: calc(100vh - 68px);
+            position: sticky;
+            top: 68px;
+        }
+        .sidebar-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            background: #fafafa;
+        }
+        .sidebar-header h2 {
+            font-size: 15px;
+            color: #666;
+        }
+        .post-count {
+            font-size: 13px;
+            color: #999;
+            margin-top: 4px;
+        }
+        .post-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .post-item:hover { background: #f8fdf8; }
+        .post-item.active {
+            background: #e8f5e9;
+            border-left: 3px solid #03c75a;
+        }
+        .post-item .post-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .post-item .post-meta {
+            font-size: 12px;
+            color: #999;
+            margin-top: 6px;
+            display: flex;
+            gap: 12px;
+        }
+        .post-item .post-category {
+            font-size: 11px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 6px;
+            display: inline-block;
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 60vh;
+            color: #999;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state p { font-size: 16px; }
+
+        /* Post Detail */
+        .post-detail { display: none; }
+        .post-detail.active { display: block; }
+
+        .detail-header {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .detail-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #222;
+            line-height: 1.4;
+        }
+        .detail-excerpt {
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .detail-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #999;
+        }
+
+        /* Action Buttons */
+        .action-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: #03c75a;
+            color: white;
+        }
+        .btn-primary:hover { background: #02b350; }
+        .btn-secondary {
+            background: white;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .btn-secondary:hover { background: #f5f5f5; }
+        .btn-naver {
+            background: #03c75a;
+            color: white;
+        }
+        .btn-naver:hover { background: #02b350; }
+
+        .btn-copied {
+            background: #2196f3 !important;
+            color: white !important;
+        }
+
+        /* Preview & Code Tabs */
+        .content-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 0;
+        }
+        .tab-btn {
+            padding: 12px 24px;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            background: #f5f5f5;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px 8px 0 0;
+            color: #666;
+        }
+        .tab-btn.active {
+            background: white;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .content-box {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 0 8px 8px 8px;
+            overflow: hidden;
+        }
+
+        /* Preview */
+        .preview-pane {
+            padding: 32px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        /* Code View */
+        .code-pane {
+            display: none;
+            position: relative;
+        }
+        .code-pane.active { display: block; }
+        .code-pane pre {
+            padding: 20px;
+            max-height: 70vh;
+            overflow: auto;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #333;
+            color: white;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60vh;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e5e5;
+            border-top: 4px solid #03c75a;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Filter */
+        .filter-bar {
+            padding: 12px 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .filter-bar select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+                position: relative;
+                top: 0;
+            }
+            .main { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>📋 ILSANGGAM 네이버 복사 도구</h1>
+        <div class="subtitle">Supabase → HTML 복사 → 네이버 블로그 붙여넣기</div>
+    </div>
+    <div class="header-right">
+        <button class="refresh-btn" onclick="loadPosts()">🔄 새로고침</button>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Sidebar: Post List -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>📝 발행된 글 목록</h2>
+            <div class="post-count" id="postCount">불러오는 중...</div>
+        </div>
+        <div class="filter-bar">
+            <select id="statusFilter" onchange="filterPosts()">
+                <option value="all">전체 상태</option>
+                <option value="published" selected>발행됨 (published)</option>
+                <option value="draft">임시저장 (draft)</option>
+            </select>
+        </div>
+        <div id="postList">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+    </div>
+
+    <!-- Main: Post Detail -->
+    <div class="main">
+        <div class="empty-state" id="emptyState">
+            <div class="icon">👈</div>
+            <p>왼쪽에서 글을 선택하세요</p>
+        </div>
+
+        <div class="post-detail" id="postDetail">
+            <!-- Header -->
+            <div class="detail-header">
+                <div class="detail-title" id="detailTitle"></div>
+                <div class="detail-excerpt" id="detailExcerpt"></div>
+                <div class="detail-meta" id="detailMeta"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-bar">
+                <button class="btn btn-primary" onclick="copyHTML()" id="copyBtn">
+                    📋 HTML 복사 (네이버용)
+                </button>
+                <button class="btn btn-secondary" onclick="copyTitle()" id="copyTitleBtn">
+                    📝 제목 복사
+                </button>
+                <button class="btn btn-secondary" onclick="copyTags()" id="copyTagsBtn">
+                    🏷️ 태그 복사
+                </button>
+                <button class="btn btn-naver" onclick="openNaverWrite()">
+                    ✏️ 네이버 글쓰기 열기
+                </button>
+            </div>
+
+            <!-- Content Tabs -->
+            <div class="content-tabs">
+                <div class="tab-btn active" onclick="switchTab('preview')">👁️ 미리보기</div>
+                <div class="tab-btn" onclick="switchTab('code')">⟨⟩ HTML 코드</div>
+            </div>
+
+            <div class="content-box">
+                <div class="preview-pane" id="previewPane"></div>
+                <div class="code-pane" id="codePane">
+                    <pre id="codeContent"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+    // ========================================
+    // Supabase 설정
+    // ========================================
+    const SUPABASE_URL = 'https://vjychsedpcbyocrtrdfd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_9n0468lPTTt9IpdpMQfvoQ_lawAbIn2';
+
+    let allPosts = [];
+    let currentPost = null;
+
+    // ========================================
+    // 글 목록 불러오기
+    // ========================================
+    async function loadPosts() {
+        const listEl = document.getElementById('postList');
+        listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+        try {
+            const res = await fetch(
+                `${SUPABASE_URL}/rest/v1/posts?select=*&order=created_at.desc&limit=100`,
+                {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                }
+            );
+            allPosts = await res.json();
+            filterPosts();
+        } catch (err) {
+            listEl.innerHTML = `<div style="padding:20px;color:#e53935;">❌ 로드 실패: ${err.message}</div>`;
+        }
+    }
+
+    // ========================================
+    // 필터링
+    // ========================================
+    function filterPosts() {
+        const filter = document.getElementById('statusFilter').value;
+        const filtered = filter === 'all'
+            ? allPosts
+            : allPosts.filter(p => p.status === filter);
+
+        document.getElementById('postCount').textContent = `총 ${filtered.length}개`;
+        renderPostList(filtered);
+    }
+
+    // ========================================
+    // 글 목록 렌더링
+    // ========================================
+    function renderPostList(posts) {
+        const listEl = document.getElementById('postList');
+
+        if (posts.length === 0) {
+            listEl.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#999;">글이 없습니다</div>';
+            return;
+        }
+
+        listEl.innerHTML = posts.map(post => `
+            <div class="post-item ${currentPost?.id === post.id ? 'active' : ''}"
+                 onclick="selectPost('${post.id}')">
+                <div class="post-title">${escapeHtml(post.title || '제목 없음')}</div>
+                <div class="post-meta">
+                    <span>📅 ${formatDate(post.created_at)}</span>
+                    <span>📊 ${post.status || 'draft'}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // ========================================
+    // 글 선택
+    // ========================================
+    function selectPost(id) {
+        currentPost = allPosts.find(p => p.id === id);
+        if (!currentPost) return;
+
+        // UI 업데이트
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('postDetail').classList.add('active');
+
+        // 헤더
+        document.getElementById('detailTitle').textContent = currentPost.title || '제목 없음';
+        document.getElementById('detailExcerpt').textContent = currentPost.excerpt || '';
+        document.getElementById('detailMeta').innerHTML = `
+            <span>📅 ${formatDate(currentPost.created_at)}</span>
+            <span>📊 ${currentPost.status}</span>
+            <span>🔗 ${currentPost.slug}</span>
+        `;
+
+        // 본문 HTML 추출
+        const htmlContent = extractBodyHTML(currentPost.content);
+
+        // 미리보기
+        document.getElementById('previewPane').innerHTML = htmlContent;
+
+        // 코드 뷰
+        document.getElementById('codeContent').textContent = htmlContent;
+
+        // 사이드바 active 상태
+        filterPosts();
+
+        // 탭 초기화
+        switchTab('preview');
+    }
+
+    // ========================================
+    // 본문 HTML 추출 (YAML frontmatter 제거)
+    // ========================================
+    function extractBodyHTML(content) {
+        if (!content) return '<p>내용이 없습니다.</p>';
+
+        // YAML frontmatter 제거 (---...--- 사이)
+        let html = content.replace(/^---[\s\S]*?---\s*/m, '').trim();
+
+        // [나노바나나: ...] 태그를 이미지 플레이스홀더로 변환
+        html = html.replace(
+            /\[나노바나나:\s*(.*?)\]/g,
+            '<div style="background:#f0f0f0; border:2px dashed #ccc; padding:20px; text-align:center; margin:15px 0; border-radius:8px; color:#888;">🖼️ 이미지 위치<br><small>$1</small></div>'
+        );
+
+        return html;
+    }
+
+    // ========================================
+    // 복사 기능들
+    // ========================================
+    async function copyHTML() {
+        if (!currentPost) return;
+        const html = extractBodyHTML(currentPost.content);
+
+        try {
+            // 리치 HTML + 텍스트 모두 클립보드에 복사
+            const blob = new Blob([html], { type: 'text/html' });
+            const textBlob = new Blob([html], { type: 'text/plain' });
+            await navigator.clipboard.write([
+                new ClipboardItem({
+                    'text/html': blob,
+                    'text/plain': textBlob
+                })
+            ]);
+            showToast('✅ HTML 복사 완료! 네이버 블로그 HTML 모드에 붙여넣기 하세요');
+            animateButton('copyBtn');
+        } catch (err) {
+            // fallback
+            await navigator.clipboard.writeText(html);
+            showToast('✅ HTML 코드 복사됨 (텍스트 모드)');
+            animateButton('copyBtn');
+        }
+    }
+
+    async function copyTitle() {
+        if (!currentPost) return;
+        await navigator.clipboard.writeText(currentPost.title || '');
+        showToast('✅ 제목 복사됨');
+        animateButton('copyTitleBtn');
+    }
+
+    async function copyTags() {
+        if (!currentPost) return;
+        // content에서 태그 추출 시도
+        const tagMatch = currentPost.content?.match(/tags:\s*\[(.*?)\]/);
+        if (tagMatch) {
+            const tags = tagMatch[1].replace(/"/g, '').replace(/'/g, '');
+            await navigator.clipboard.writeText(tags);
+            showToast('✅ 태그 복사됨');
+        } else {
+            showToast('⚠️ 태그를 찾을 수 없습니다');
+        }
+        animateButton('copyTagsBtn');
+    }
+
+    function openNaverWrite() {
+        window.open('https://blog.naver.com/ilsanggam/postwrite', '_blank');
+    }
+
+    // ========================================
+    // 탭 전환
+    // ========================================
+    function switchTab(tab) {
+        const tabs = document.querySelectorAll('.tab-btn');
+        tabs.forEach((t, i) => t.classList.toggle('active', i === (tab === 'preview' ? 0 : 1)));
+
+        document.getElementById('previewPane').style.display = tab === 'preview' ? 'block' : 'none';
+        document.getElementById('codePane').classList.toggle('active', tab === 'code');
+    }
+
+    // ========================================
+    // 유틸
+    // ========================================
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return `${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}`;
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    function animateButton(btnId) {
+        const btn = document.getElementById(btnId);
+        btn.classList.add('btn-copied');
+        setTimeout(() => btn.classList.remove('btn-copied'), 1500);
+    }
+
+    // ========================================
+    // 초기화
+    // ========================================
+    loadPosts();
+</script>
+
+</body>
+</html>
