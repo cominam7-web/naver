@@ -206,6 +206,11 @@
             color: white;
         }
         .btn-naver:hover { background: #02b350; }
+        .btn-danger {
+            background: #e53935;
+            color: white;
+        }
+        .btn-danger:hover { background: #c62828; }
 
         .btn-copied {
             background: #2196f3 !important;
@@ -397,6 +402,9 @@
                 </button>
                 <button class="btn btn-naver" onclick="openNaverWrite()">
                     ✏️ 네이버 글쓰기 열기
+                </button>
+                <button class="btn btn-danger" onclick="deletePost()" id="deleteBtn">
+                    🗑️ 글 삭제
                 </button>
             </div>
 
@@ -692,6 +700,37 @@
 
     function openNaverWrite() {
         window.open('https://blog.naver.com/ilsanggam/postwrite', '_blank');
+    }
+
+    // ========================================
+    // 글 삭제
+    // ========================================
+    async function deletePost() {
+        if (!currentPost) return;
+        if (!confirm(`"${currentPost.title}" 글을 삭제하시겠습니까?`)) return;
+
+        try {
+            const res = await fetch(
+                `${SUPABASE_URL}/rest/v1/posts?id=eq.${currentPost.id}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                }
+            );
+            if (!res.ok) throw new Error(`삭제 실패: ${res.status}`);
+
+            allPosts = allPosts.filter(p => p.id !== currentPost.id);
+            currentPost = null;
+            document.getElementById('postDetail').classList.remove('active');
+            document.getElementById('emptyState').style.display = '';
+            filterPosts();
+            showToast('🗑️ 글이 삭제되었습니다');
+        } catch (err) {
+            showToast(`❌ 삭제 실패: ${err.message}`);
+        }
     }
 
     // ========================================
